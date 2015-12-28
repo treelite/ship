@@ -1,0 +1,5 @@
+node_modules
+pid
+*.swp
+.DS_Store
+output
