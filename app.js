@@ -12,7 +12,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 
 import pipe from './lib/pipe';
-import Meta from './lib/meta';
+import Meta from './lib/Meta';
 import locker from './lib/locker';
 import logger from './lib/logger';
 import exists from './lib/util/exists';
