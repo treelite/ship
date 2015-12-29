@@ -11,10 +11,9 @@ import extend from 'xtend';
 import express from 'express';
 import bodyParser from 'body-parser';
 
-import pipe from './lib/pipe';
 import Meta from './lib/Meta';
-import locker from './lib/locker';
 import logger from './lib/logger';
+import request from './lib/request';
 import exists from './lib/util/exists';
 
 let options = {
@@ -40,8 +39,6 @@ let log = logger(options.log);
 
 let meta = new Meta(options.meta);
 meta.on('error', error => log.error('meta: %s', error));
-
-let lock = locker();
 
 let app = express();
 
@@ -70,10 +67,6 @@ app.post('/:repository/:event', (req, res) => {
         return res.status(404).end();
     }
 
-    if (!lock(`${repository}-${event}`)) {
-        return res.status(403).end();
-    }
-
     let data;
     try {
         data = JSON.parse(decodeURIComponent(req.body));
@@ -82,14 +75,8 @@ app.post('/:repository/:event', (req, res) => {
         return res.status(400).end();
     }
 
-    log.info('pipe receive', extend({data: JSON.stringify(data)}, req.params));
-    pipe(action, data)
-        .then(
-            info => log.info('pipe success: %s', JSON.stringify(info), req.params),
-            error => log.error('pipe fail: %s', error, req.params)
-        );
-
-    res.status(200).end();
+    res.on('pipe', src => res.status(src.statusCode));
+    request(action, data).then(result => result.pipe(res));
 });
 
 app.use((error, req, res, next) => {
@@ -97,9 +84,7 @@ app.use((error, req, res, next) => {
     res.status(500).end();
 });
 
-app.use((req, res) => {
-    res.status(404).end();
-});
+app.use((req, res) => res.status(404).end());
 
 app.listen(options.port);
 

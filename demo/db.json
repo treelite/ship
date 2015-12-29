@@ -7,5 +7,13 @@
         "age": "${treelite.age}"
       }
     }
+  },
+  "baidu": {
+    "visit": {
+      "url": "https://www.baidu.com",
+      "method": "GET",
+      "params": {
+      }
+    }
   }
 }
