@@ -2,10 +2,21 @@
   "name": "ship",
   "version": "0.1.0",
   "description": "Webhook Pipe",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "treelite <c.xinle@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.13.3",
+    "mkdirp": "^0.5.1",
+    "winston": "^2.1.1",
+    "winston-daily-rotate-file": "^1.0.1",
+    "xtend": "^4.0.1"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.3.17",
+    "babel-preset-es2015-node5": "^1.1.1",
+    "jasmine": "^2.4.1"
+  }
 }
