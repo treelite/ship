@@ -20,7 +20,7 @@ import exists from './lib/util/exists';
 let options = {
     port: 80,
     log: '/var/log/ship',
-    meta: '/etc/ship/ship.json'
+    meta: '/etc/ship/meta.json'
 };
 
 let file = process.argv[2];
