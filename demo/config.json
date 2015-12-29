@@ -1,0 +1,5 @@
+{
+  "port": 8848,
+  "meta": "./db.json",
+  "log": "./log"
+}

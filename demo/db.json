@@ -1,0 +1,11 @@
+{
+  "test": {
+    "tag": {
+      "url": "http://127.0.0.1:8848/test",
+      "method": "GET",
+      "params": {
+        "age": "${treelite.age}"
+      }
+    }
+  }
+}
