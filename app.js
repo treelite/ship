@@ -15,6 +15,11 @@ import Meta from './lib/Meta';
 import logger from './lib/logger';
 import request from './lib/request';
 import exists from './lib/util/exists';
+import * as normalize from './lib/normalize';
+
+const ERROR_BANG = 500;
+const ERROR_PARAMS = 400;
+const ERROR_NOT_FOUND = 404;
 
 let options = {
     port: 80,
@@ -44,14 +49,16 @@ let app = express();
 
 // 访问日志
 app.use((req, res, next) => {
-    res.on('finish', () => {
-        if (res.statusCode >= 500) {
-            log.error('access: %d %s', res.statusCode, req.url);
+    let finishHandler = () => {
+        let data = [res.statusCode, req.params];
+        if (res.statusCode >= ERROR_BANG) {
+            log.error('tigger fail %d', ...data);
         }
         else {
-            log.info('access: %d %s', res.statusCode, req.url);
+            log.info('tigger success %d', ...data);
         }
-    });
+    };
+    res.on('finish', finishHandler);
     next();
 });
 
@@ -64,27 +71,40 @@ app.post('/:repository/:event', (req, res) => {
     let action = meta.get(repository, event);
 
     if (!action) {
-        return res.status(404).end();
+        return res.status(ERROR_NOT_FOUND).end();
     }
 
-    let data;
+    // TODO
+    // 支持非 JSON 的数据请求
+    let source = req.body || '{}';
     try {
-        data = JSON.parse(decodeURIComponent(req.body));
+        source = JSON.parse(decodeURIComponent(source));
     }
     catch (e) {
-        return res.status(400).end();
+        return res.status(ERROR_PARAMS).end();
     }
 
+    let data = normalize.data(action, source);
+    // 数据源不合法
+    // 拒绝服务
+    if (!data) {
+        return res.status(ERROR_PARAMS).end();
+    }
+
+    let options = normalize.options(action);
+    log.info('trigger', {repository, event, options, data});
     res.on('pipe', src => res.status(src.statusCode));
-    request(action, data).then(result => result.pipe(res));
+    // TODO
+    // 日志记录请求的返回数据
+    request(options, data).then(result => result.pipe(res));
 });
 
 app.use((error, req, res, next) => {
     log.error('unkown error: %s %s', error.message, req.url, {stack: error.stack});
-    res.status(500).end();
+    res.status(ERROR_BANG).end();
 });
 
-app.use((req, res) => res.status(404).end());
+app.use((req, res) => res.status(ERROR_NOT_FOUND).end());
 
 app.listen(options.port);
 
