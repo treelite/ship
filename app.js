@@ -6,13 +6,16 @@
 'use strict';
 
 import fs from 'fs';
-import express from 'express';
+import path from 'path';
 import extend from 'xtend';
-import logger from './lib/logger';
-import exists from './lib/util/exists';
+import express from 'express';
+import bodyParser from 'body-parser';
+
 import pipe from './lib/pipe';
 import Meta from './lib/meta';
-import lock from './lib/lock';
+import locker from './lib/locker';
+import logger from './lib/logger';
+import exists from './lib/util/exists';
 
 let options = {
     port: 80,
@@ -22,17 +25,40 @@ let options = {
 
 let file = process.argv[2];
 if (file && exists(file)) {
-    file = fs.readFileSync(file, 'utf8');
-    let config = JSON.parse(file);
+    let config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    let dir = path.dirname(file);
+    if (config.log) {
+        config.log = path.resolve(dir, config.log);
+    }
+    if (config.meta) {
+        config.meta = path.resolve(dir, config.meta);
+    }
     options = extend(options, config);
 }
 
 let log = logger(options.log);
 
 let meta = new Meta(options.meta);
-meta.on('error', error => log.error('[meta] %s', error));
+meta.on('error', error => log.error('meta: %s', error));
+
+let lock = locker();
 
 let app = express();
+
+// 访问日志
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        if (res.statusCode >= 500) {
+            log.error('access: %d %s', res.statusCode, req.url);
+        }
+        else {
+            log.info('access: %d %s', res.statusCode, req.url);
+        }
+    });
+    next();
+});
+
+app.use(bodyParser.text({type: '*/*'}));
 
 // FIXME
 // 规范错误处理
@@ -53,18 +79,28 @@ app.post('/:repository/:event', (req, res) => {
         data = JSON.parse(decodeURIComponent(req.body));
     }
     catch (e) {
-        return res.status(400);
+        return res.status(400).end();
     }
 
+    log.info('pipe receive', extend({data: JSON.stringify(data)}, req.params));
     pipe(action, data)
         .then(
-            info => log.info('[pipe] %s', JSON.stringify(info), req.params),
-            error => log.error('[pipe] %s', error, req.params)
+            info => log.info('pipe success: %s', JSON.stringify(info), req.params),
+            error => log.error('pipe fail: %s', error, req.params)
         );
 
     res.status(200).end();
 });
 
+app.use((error, req, res, next) => {
+    log.error('unkown error: %s %s', error.message, req.url, {stack: error.stack});
+    res.status(500).end();
+});
+
+app.use((req, res) => {
+    res.status(404).end();
+});
+
 app.listen(options.port);
 
-log.info('server start');
+log.info('server start at %d', options.port);
