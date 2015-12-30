@@ -50,22 +50,18 @@ let app = express();
 // 访问日志
 app.use((req, res, next) => {
     let finishHandler = () => {
-        let data = [res.statusCode, req.params];
-        if (res.statusCode >= ERROR_BANG) {
-            log.error('tigger fail %d', ...data);
-        }
-        else {
-            log.info('tigger success %d', ...data);
-        }
+        let code = res.statusCode;
+        let data = [code, req.params];
+        data.unshift(code >= 200 && code < 300 ? 'success' : 'fail');
+        log[code >= ERROR_BANG ? 'error' : 'info']('trigger %s %d', ...data);
     };
     res.on('finish', finishHandler);
     next();
 });
 
-app.use(bodyParser.text({type: '*/*'}));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
 
-// FIXME
-// 规范错误处理
 app.post('/:repository/:event', (req, res) => {
     let {repository, event} = req.params;
     let action = meta.get(repository, event);
@@ -74,15 +70,7 @@ app.post('/:repository/:event', (req, res) => {
         return res.status(ERROR_NOT_FOUND).end();
     }
 
-    // TODO
-    // 支持非 JSON 的数据请求
-    let source = req.body || '{}';
-    try {
-        source = JSON.parse(decodeURIComponent(source));
-    }
-    catch (e) {
-        return res.status(ERROR_PARAMS).end();
-    }
+    let source = req.body;
 
     let data;
     if (action.params) {
@@ -102,11 +90,13 @@ app.post('/:repository/:event', (req, res) => {
     request(options, data).then(result => result.pipe(res));
 });
 
+// 异常错误处理
 app.use((error, req, res, next) => {
     log.error('unkown error: %s %s', error.message, req.url, {stack: error.stack});
     res.status(ERROR_BANG).end();
 });
 
+// 404
 app.use((req, res) => res.status(ERROR_NOT_FOUND).end());
 
 app.listen(options.port);
