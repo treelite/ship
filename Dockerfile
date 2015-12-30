@@ -12,8 +12,11 @@ ADD ./.babelrc ./
 
 RUN npm run compile
 
+RUN mv output/* ./
+RUN rm -r output
+
 EXPOSE 80
 
 VOLUME ["/var/log/ship", "/etc/ship"]
 
-ENTRYPOINT ["node", "output/app.js"]
+ENTRYPOINT ["node", "app.js"]
