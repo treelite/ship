@@ -84,11 +84,14 @@ app.post('/:repository/:event', (req, res) => {
         return res.status(ERROR_PARAMS).end();
     }
 
-    let data = normalize.data(action, source);
-    // 数据源不合法
-    // 拒绝服务
-    if (!data) {
-        return res.status(ERROR_PARAMS).end();
+    let data;
+    if (action.params) {
+        data = normalize.data(action.params, source);
+        // 数据源不合法
+        // 拒绝服务
+        if (!data) {
+            return res.status(ERROR_PARAMS).end();
+        }
     }
 
     let options = normalize.options(action);
