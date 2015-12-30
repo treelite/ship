@@ -12,6 +12,8 @@ ADD ./.babelrc ./
 
 RUN npm run compile
 
+RUN rm -r lib
+RUN rm app.js
 RUN mv output/* ./
 RUN rm -r output
 
