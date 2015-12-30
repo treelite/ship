@@ -14,6 +14,7 @@ import bodyParser from 'body-parser';
 import Meta from './lib/Meta';
 import logger from './lib/logger';
 import request from './lib/request';
+import Channel from './lib/Channel';
 import exists from './lib/util/exists';
 import * as normalize from './lib/normalize';
 
@@ -84,10 +85,10 @@ app.post('/:repository/:event', (req, res) => {
 
     let options = normalize.options(action);
     log.info('trigger', {repository, event, options, data});
-    res.on('pipe', src => res.status(src.statusCode));
-    // TODO
-    // 日志记录请求的返回数据
-    request(options, data).then(result => result.pipe(res));
+
+    let logChannel = new Channel(res => log.info('trigger response', {repository, event, res}));
+    logChannel.on('pipe', src => res.status(src.statusCode));
+    request(options, data).then(result => result.pipe(logChannel).pipe(res));
 });
 
 // 异常错误处理
